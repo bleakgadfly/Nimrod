@@ -6,7 +6,7 @@ type
         user, pass: string
         address: string
         port: TPort
-        setGroup: proc(article: string): TNNTPGroup
+        sendCommand: proc(client: TNNTP, groupName: string): TNNTPGroup
 
     PNNTP* = ref TNNTP
 
@@ -21,7 +21,7 @@ type
         firstArticle: TNNTPArticle
         lastArticle: TNNTPArticle
         currentPointer: TNNTPArticlePointer
-        sendCommand: proc(article: string): TNNTPArticle
+        sendCommand: proc(messageId: string): string
         name: string
 
     TNNTPArticlePointer* = object
@@ -31,39 +31,13 @@ type
     TNNTPGroupSeq* = seq[TNNTPGroup]
     TNNTPArticleSeq* = seq[TNNTPArticle]
 
-proc nntpClient(socket: TSocket, user, pass, address: string, port: TPort): PNNTP =
-    new(result)
+#template sendCommand(command: string): stmt =
+#    var socket = client.socket
+#    socket.send(command & "\c\L")
 
-proc authenticate(client: TNNTP) =    
+proc group(client: TNNTP, groupName: string): TNNTPGroup =
     var socket = client.socket
-    socket.send("AUTHINFO USER " & client.user & "\c\L")
-    socket.send("AUTHINFO PASS " & client.pass & "\c\L")
-
-proc connect(client: TNNTP) =
-    client.socket.connect(client.address, client.port);
-
-proc disconnect(client: TNNTP): string =
-    result = "";
-
-proc article(group: TNNTPGroup, article: string): TNNTPArticle =
-    var nntpArticle = group.sendCommand(article);
-    #socket.send("ARTICLE " & article)
-    result.messageId = ""
-    result.head = ""
-    result.body = ""
-    result.stat = ""
-
-proc head(group: TNNTPGroup, article: string): string =
-    result = ""
-
-proc body(group: TNNTPGroup, article: string): string =
-    result = ""
-
-proc stat(group: TNNTPGroup, messageId: string): TNNTPArticlePointer =
-    result.messageId = ""
-    result.articleNumber = 0
-
-proc group(client: TNNTP, article: string): TNNTPGroup =
+    socket.send("GROUP " & groupName)
     var firstArticle = TNNTPArticle(messageId: "")
     var lastArticle = TNNTPArticle(messageId: "")
 
@@ -71,41 +45,80 @@ proc group(client: TNNTP, article: string): TNNTPGroup =
     result.firstArticle = firstArticle
     result.lastArticle = lastArticle
     result.name = ""
+    return
 
-proc last(group: TNNTPGroup, article: string): TNNTPArticle =
+proc nntpClient*(socket: TSocket, user, pass, address: string, port: TPort): PNNTP =
+    new(result)
+    result.group = group
+
+proc authenticate*(client: TNNTP) =
+    client.authenticate(client.user, client.pass)
+
+proc authenticate*(client TNNTP, user, pass: string) =
+    var socket = client.socket
+    socket.send("AUTHINFO USER " & user & "\c\L")
+    socket.send("AUTHINFO PASS " & pass & "\c\L")
+
+proc connect*(client: TNNTP) =
+    client.socket.connect(client.address, client.port);
+
+proc connect*(client, TNNTP, address: string, port: TPort) =
+    client.socket.connect(address, port)
+
+proc article*(group: TNNTPGroup, articleId: string): TNNTPArticle =
+    var nntpArticle = group.sendCommand("ARTICLE " & articleId);
     result.messageId = ""
     result.head = ""
     result.body = ""
     result.stat = ""
 
-proc next(group: TNNTPGroup, article: string): TNNTPArticle =
+proc head*(group: TNNTPGroup, articleId: string): string =    
+    var head = group.sendCommand("HEAD " & articleId)
+    result = ""
+
+proc body*(group: TNNTPGroup, articleId: string): string =
+    var body = group.sendCommand("BODY " & articleId)
+    result = ""
+
+proc stat*(group: TNNTPGroup, articleId: string): TNNTPArticlePointer =
+    discard group.sendCommand("STAT " & articleId)
+    result.messageId = ""
+    result.articleNumber = 0
+
+proc last*(group: TNNTPGroup, article: string): TNNTPArticle =
     result.messageId = ""
     result.head = ""
     result.body = ""
     result.stat = ""
 
-#proc getList(client: TNNTPClient, article: string): TNNTPGroupSeq =
+proc next*(group: TNNTPGroup, article: string): TNNTPArticle =
+    result.messageId = ""
+    result.head = ""
+    result.body = ""
+    result.stat = ""
+
+#proc getList*(client: TNNTPClient, article: string): TNNTPGroupSeq =
 #    result = ""
 
-#proc getNewGroups(client: TNNTPClient, article: string): TNNTPGroupSeq =
+#proc getNewGroups*(client: TNNTPClient, article: string): TNNTPGroupSeq =
 #    result = ""
 
-proc newnews(group: TNNTPGroup, article: string): string =
+proc newnews*(group: TNNTPGroup, article: string): string =
     result = ""
 
-proc help(client: TNNTP, article: string): string =
+proc help*(client: TNNTP, article: string): string =
     result = ""
 
-proc quit(client: TNNTP, article: string): string =
+proc quit*(client: TNNTP, article: string): string =
     result = ""
 
-proc post(group: TNNTPGroup, article: string): string =
+proc post*(group: TNNTPGroup, article: string): string =
     result = ""
 
-proc ihave(group: TNNTPGroup, article: string): string =
+proc ihave*(group: TNNTPGroup, article: string): string =
     result = ""
 
-proc slave(client: TNNTP, article: string): string =
+proc slave*(client: TNNTP, article: string): string =
     result = ""
 
 
